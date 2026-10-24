@@ -1,0 +1,23 @@
+{
+  "name": "@sojourn/backend",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "convex dev",
+    "dev:setup": "convex dev --configure --until-success"
+  },
+  "dependencies": {
+    "@better-auth/expo": "catalog:",
+    "@convex-dev/better-auth": "catalog:",
+    "better-auth": "catalog:",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@sojourn/config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "typescript": "^6.0.3"
+  }
+}

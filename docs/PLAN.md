@@ -1,12 +1,10 @@
-# Sojourn — Plan (Draft v1)
+# Sojourn — Plan (v2, proof of concept)
 
-A mobile app where long-distance hikers document and share their journeys on any
-long-distance trail. A **Journey** is an ordered collection of **Entries**. Each
-entry has a timestamp and a geolocation, plus optional text and/or images. Viewing
-a journey draws the entries' locations, connected in time order, as a line on a map.
-
-> Status: draft for review. Decisions made so far are in §0; remaining open
-> questions are at the bottom.
+A mobile + web app where long-distance hikers document and share their journeys
+on any long-distance trail. A **Journey** is an ordered collection of **Entries**.
+Each entry has a timestamp and a geolocation, plus optional text and/or images.
+Viewing a journey draws the entries' locations, connected in time order, as a
+line on a map.
 
 ---
 
@@ -16,178 +14,170 @@ a journey draws the entries' locations, connected in time order, as a line on a 
 |---|---|---|
 | D1 | Offline | **Offline-first is in v1.** Entries/photos are created locally and synced when signal returns. |
 | D2 | Location safety | **Public location is delayed by default.** Per entry, the author can override (publish immediately); doing so shows a warning dialog explaining the risk. |
-| D3 | Path | **v1: straight lines between entries.** Continuous track recording is v2, preferably via integration with an existing solution rather than built in-house. |
-| D4 | Trails | **No fixed trail catalog.** Users are not locked into trails the app knows about; trail is free-form per journey. No official route overlay in v1. |
-| D5 | Authors | **Journeys support multiple authors.** A person must be added as an author on the journey before they can post entries to it. |
+| D3 | Path | **v1: straight lines between entries.** Continuous track recording is v2, preferably via integration with an existing solution. |
+| D4 | Trails | **No trail catalog.** Journeys are labelled with free-form **tags** (`#at`, `#AppalachianTrail`, `#pnt2027`). |
+| D5 | Authors | **Multiple authors per journey.** A person must be added as an author before they can post. |
+| D6 | Entry location | Location can be **edited after an entry is created**. A photo's **EXIF location/time** can pre-fill the entry. |
+| D7 | Social | **Follow hikers + feed** in v1, gated by each hiker's privacy settings. |
+| D8 | Platforms | **iOS, Android, and web.** |
+| D9 | Stack | **Convex** backend with the **`@convex-dev/geospatial`** component; scaffolded with Better-T-Stack (see §3). This is a **proof of concept**. |
+| D10 | Media | **Up to 5 photos per entry**, no video in v1. |
+| D11 | Brand | Name **Sojourn**. Greens + earth tones, **sharp edges** — "a map and a journal on a table". |
+
+### Assumptions for questions not yet answered
+These are the defaults the POC uses; easy to change.
+
+| # | Question | Default chosen |
+|---|---|---|
+| A1 | Multi-author map: one line or one per author? | **One line per author**, each in a distinct earth-tone color. |
+| A2 | Location delay default / configurable? | **24h default**, owner can set per journey (0–72h). |
+| A3 | During the delay, show text/photos? | **Show text/photos, hide location** (map marker appears once the delay passes). |
+| A4 | Do followers bypass the delay? | **No** — only journey members see live locations. |
+| A5 | Removed author's entries | **Stay in the journey** (still attributed to them). |
 
 ---
 
-## 1. Core concepts
+## 1. Domain model
 
 | Concept | Description |
 |---|---|
-| **User** | Hiker account: display name, trail name (e.g. "Sunshine"), avatar, bio. |
-| **Journey** | A hike: title, free-text trail name, description, start/end date, status (planned / active / completed), visibility, cover photo, public-location delay. |
-| **Journey member** | A user's role on a journey: `owner` or `author`. Only members may post entries. |
-| **Entry** | A journal post within a journey by one author: `recorded_at`, `location`, optional `text`, 0..N `photos`, and a `publish_location_immediately` override flag. |
-| **Photo** | Image attached to an entry; stored in object storage, with thumbnail. |
+| **User / Profile** | Better Auth user + profile: username, display name, trail name, bio, avatar, **privacy settings**. |
+| **Journey** | Title, description, **tags**, start/end date, status (planned / active / completed), visibility, location delay, cover photo. |
+| **Journey member** | `owner` or `author`; `invited` → `active`. Only active members post entries. |
+| **Entry** | One author; `recordedAt`, `location {lat,lng}`, optional `body`, 0–5 photos, `shareLocationNow` override flag. |
+| **Follow** | follower → followee, with `pending` / `accepted` state for private profiles. |
 
-Rules:
-- An entry must have text **or** at least one photo.
-- Every entry has a timestamp and location; both default to "now / current GPS"
-  and can be edited.
-- The map line is built by sorting a journey's entries by `recorded_at` and
-  connecting their points with straight segments (D3).
+Rules
+- An entry needs text **or** at least one photo.
+- Timestamp & location default to now / current GPS (or a photo's EXIF), and
+  are editable later (D6), including by dragging the pin on a map.
+- Map line = entries sorted by `recordedAt`, grouped by author, straight segments.
 
-### Trails (D4)
-- `journeys.trail_name` is free text ("Appalachian Trail", "Hayduke Trail",
-  "My Scottish coast walk"), with autocomplete from names other users have
-  already entered — a suggestion, never a restriction.
-- No official route geometry is stored or drawn in v1.
+### Tags (D4)
+- Stored normalized (lower-case, no `#`) for matching, display form kept.
+  `#AppalachianTrail` and `#appalachiantrail` match; `#at` and
+  `#appalachiantrail` are different tags (no alias system in the POC).
+- Tag autocomplete from existing tags; browse journeys by tag.
 
-### Multiple authors (D5)
-- The journey creator is the `owner`. The owner adds authors (by username or
-  invite link); the invitee must accept before becoming an `author`.
-- Authors can create entries and edit/delete **their own** entries. Owner can
-  edit journey details, manage members, and remove any entry.
-- Each entry shows its author. On the map, see open question Q-A on how to draw
-  multiple hikers.
+### Privacy (D2, D7)
+Profile privacy settings:
+- `profileVisibility`: `public` (anyone can follow) | `approval` (follow requests need approval) | `private` (no followers, no discovery).
+- Journey `visibility`: `public` | `followers` | `unlisted` (link only) | `private` (members only).
 
-### Location delay (D2)
-- Each journey has a `location_delay` (default **24h**, see Q-B). For viewers
-  who are not members, an entry's location is hidden until
-  `recorded_at + location_delay` has passed. Text/photos may still be visible
-  (see Q-C).
-- When composing an entry, the author can toggle **"Share location now"**.
-  Turning it on shows a confirmation dialog, e.g.:
-  > *Sharing your exact location in real time lets anyone viewing this journey
-  > see where you are right now. Only do this if you're comfortable with that.*
-  > [Cancel] [Share now]
-- Enforced **server-side** (row-level security / a view), not just hidden in
-  the UI, so the location is never sent to clients that shouldn't see it.
-- Photos: EXIF GPS is stripped on upload so photos can't leak the location.
+Location delay
+- Non-members receive `location = null` for an entry until
+  `recordedAt + journey.locationDelay` has passed, unless the author set
+  `shareLocationNow`. Turning that on shows a warning dialog:
+  > *Sharing your location now lets anyone who can see this journey know where
+  > you are right now. Only do this if you're comfortable with that.*
+- Enforced **in Convex query functions** — redacted server-side, never sent to the client.
+- Geospatial index only contains entries whose location is publicly visible
+  (see §3), so map/area queries can't leak hidden locations.
+- EXIF GPS is read on device for pre-fill, then **stripped** before upload
+  (re-encoding the image via `expo-image-manipulator` drops metadata).
 
-## 2. MVP feature set
-
-1. **Auth** — sign up / sign in (email + Apple/Google sign-in).
-2. **Journeys** — create, edit, delete; list "my journeys"; free-text trail name.
-3. **Members** — invite authors, accept/decline, remove.
-4. **Entries** — create with text and/or photos; auto-capture GPS + time; edit/delete; location-delay override with warning.
-5. **Journey view** — synchronized **Map** (polyline + markers; tap → entry) and **Timeline** (feed of entries).
-6. **Offline-first** — local store + background sync queue (D1).
-7. **Sharing** — public/unlisted/private journeys viewable by others (scope pending Q7).
-
-### v2 candidates
-- Continuous track recording via integration (D3) — e.g. GPX import from apps
-  hikers already use (Gaia GPS, FarOut, Strava, Garmin inReach/Connect,
-  CalTopo), or API sync where available. GPX import is the lowest-friction,
-  most universal starting point.
-- Following, feed, comments/reactions.
-- Stats: distance (along entry line or imported track), days, zero days.
-- Web viewer for friends & family; export (PDF/GPX).
-
-## 3. Architecture
-
-**Client: React Native with Expo (TypeScript)**
-- Expo modules for camera, image picker, location, file system, SQLite.
-- Maps: `react-native-maps` for v1; MapLibre with offline tiles is a later option.
-- Local store: SQLite (`expo-sqlite` + Drizzle) as on-device source of truth,
-  with an outbox queue for pending writes and photo uploads.
-
-**Backend: Supabase** (Postgres + PostGIS, Auth, Storage, Row-Level Security).
-
-**Data model (Postgres)**
-```sql
-profiles (id uuid pk -> auth.users, username unique, display_name, trail_name,
-          avatar_url, bio, created_at)
-
-journeys (id uuid pk, owner_id fk, title, description,
-          trail_name text null,                       -- free text (D4)
-          status text,                                -- planned | active | completed
-          visibility text,                            -- private | unlisted | public
-          location_delay interval default '24 hours', -- (D2)
-          started_on date, ended_on date, cover_photo_id fk null,
-          created_at, updated_at)
-
-journey_members (journey_id fk, user_id fk,
-                 role text,                           -- owner | author
-                 status text,                         -- invited | active
-                 invited_by fk, created_at,
-                 primary key (journey_id, user_id))
-
-entries (id uuid pk,                                  -- client-generated (offline)
-         journey_id fk, author_id fk,
-         recorded_at timestamptz,
-         location geography(Point,4326),
-         elevation_m real null, accuracy_m real null,
-         body text null,
-         publish_location_immediately bool default false,  -- (D2 override)
-         created_at, updated_at, deleted_at null)
-
-entry_photos (id uuid pk, entry_id fk, storage_path, width, height,
-              position int, created_at)
-```
-- RLS:
-  - insert entry ⇒ caller is an active member of the journey.
-  - update/delete entry ⇒ caller is the entry's author, or journey owner (delete).
-  - read ⇒ members always; others only if journey is `public`/`unlisted`.
-- Non-members read entries through a view `public_entries` that returns
-  `location = NULL` unless `publish_location_immediately` or
-  `now() >= recorded_at + location_delay`.
-
-**Offline sync**
-1. Creating an entry writes to SQLite and copies photos into app storage; status `pending`.
-2. Sync worker (on foreground / connectivity change / periodic background task)
-   uploads photos, then upserts entry rows (idempotent by UUID); marks `synced`.
-3. Conflicts: last-write-wins per entry. Since authors only edit their own
-   entries, true conflicts are limited to one person on two devices.
-4. Membership is checked at sync time; if an author was removed while offline,
-   their pending entries fail with a clear message and stay on the device.
-
-**Photos** — resize/compress on device (long edge ~2048px, JPEG ~0.8), thumbnail, strip EXIF GPS.
-
-## 4. Milestones
-
-| # | Milestone | Outcome |
-|---|---|---|
-| 0 | Scaffold | Expo app, TS, lint/format, CI, Supabase project + migrations |
-| 1 | Auth & profiles | Sign up/in, username, profile editing |
-| 2 | Journeys | CRUD, free-text trail, visibility, location delay setting |
-| 3 | Entries (online) | Text + photos + GPS/time; timeline view |
-| 4 | Map view | Polyline + markers, marker → entry detail |
-| 5 | Offline-first | SQLite store, outbox sync, retry |
-| 6 | Location delay | Server-side enforcement, per-entry override + warning dialog |
-| 7 | Multiple authors | Invite/accept/remove, per-author permissions |
-| 8 | Sharing & beta | Public browsing/share links, polish, TestFlight / Play internal testing |
-
-## 5. Testing
-- Jest unit tests: sync queue, polyline building, validation, delay logic.
-- RLS/permission tests against local Supabase (members vs. non-members, delay view).
-- React Native Testing Library component tests; Maestro E2E later.
+### Feed (D7)
+- Feed = recent entries from journeys the viewer may see, authored by people
+  they follow (accepted follows), newest first, paginated.
+- POC: fan-out-on-read (query follows → their recent entries). Fine at POC scale.
 
 ---
 
-## 6. Open questions
+## 2. Feature scope (POC)
 
-**New, from the decisions above**
-- **Q-A Multi-author map:** if partners split up (different paces, side trips),
-  should the map draw **one line per author** (distinct colors) or **one line**
-  through all entries in time order? (Recommendation: one line per author —
-  a single line zig-zags between two people's positions.)
-- **Q-B Delay default:** is 24 hours a good default? Should the owner be able to change it per journey (e.g. 0–72h)?
-- **Q-C During the delay:** should non-members see the entry's text/photos
-  immediately with the location hidden, or should the whole entry be held back?
-  (Photos of landmarks/trail signs can reveal location too.)
-- **Q-D Followers/trusted people:** should the delay also apply to people the
-  hiker trusts (family), or should there be a "trusted viewers" list that
-  sees live locations?
-- **Q-E Author removal:** when an author is removed or leaves, do their entries stay in the journey?
+1. Auth (Better Auth email/password; social sign-in later) + profile & privacy settings.
+2. Journeys: create / edit / delete, tags, visibility, location delay.
+3. Members: owner invites authors by username; invitee accepts/declines.
+4. Entries: text + up to 5 photos, GPS/EXIF pre-fill, edit location after creation, "share location now" + warning.
+5. Journey view: map (polylines per author + markers) and timeline.
+6. Follow/unfollow, follow requests, feed.
+7. Explore: browse public journeys by tag.
+8. Offline-first entry creation on mobile (outbox, see §3).
 
-**Still open from v0**
-6. Can users **drag the pin** to correct/set an entry's location (e.g. writing up
-   last night's camp)? Use a photo's EXIF location/time to pre-fill?
-7. **Social features** in v1: just shareable journeys, or also following / feed /
-   comments / likes? Browse/search journeys by trail name and year?
-8. **Platforms:** iOS + Android both? Web viewer for family in v1?
-9. **Stack & scope:** OK with Expo + Supabase? POC vs. production foundation?
-10. Photos per entry limit, video support, app name/branding.
+### v2 candidates
+- Continuous tracking via integration — start with **GPX import** (Gaia GPS,
+  FarOut, CalTopo, Garmin, Strava all export GPX), API sync later.
+- Comments/reactions, notifications, stats, offline map tiles, export, nearby-hikers via geospatial queries.
+
+---
+
+## 3. Architecture
+
+### Scaffold
+```
+bun create better-t-stack@latest sojourn \
+  --frontend tanstack-router native-unistyles --backend convex --runtime none \
+  --api none --auth better-auth --payments none --database none --orm none \
+  --db-setup none --package-manager bun --git --web-deploy docker \
+  --server-deploy none --install --addons skills turborepo --examples none
+```
+Monorepo (Turborepo + bun workspaces):
+- `apps/web` — React + TanStack Router (web)
+- `apps/native` — Expo + Unistyles (iOS/Android)
+- `packages/backend` — Convex functions, schema, Better Auth integration
+
+### Convex schema (sketch)
+```ts
+profiles:        { userId, username, displayName, trailName?, bio?, avatarId?,
+                   profileVisibility }                         // index by_user, by_username
+journeys:        { ownerId, title, description?, tags: string[], status,
+                   visibility, locationDelayHours, startedOn?, endedOn?,
+                   coverPhotoId? }                             // index by_owner
+journeyTags:     { journeyId, tag }                            // index by_tag (lookup table)
+journeyMembers:  { journeyId, userId, role, status, invitedBy } // by_journey, by_user
+entries:         { journeyId, authorId, clientId, recordedAt,
+                   location: { lat, lng }, body?, photoIds: Id<"_storage">[],
+                   shareLocationNow, editedAt? }               // by_journey_time, by_author_time, by_client_id
+follows:         { followerId, followeeId, status }            // by_follower, by_followee
+```
+- `@convex-dev/geospatial` index: key = entryId, coordinates = location,
+  filter keys = journeyId / visibility. An entry is inserted into the index
+  only once its location is publicly visible (immediately if `shareLocationNow`,
+  otherwise via a **scheduled function** at `recordedAt + delay`). Updated on
+  location edits, removed on delete. Used for "journeys near here" / explore-by-area.
+- Photos: Convex file storage (`generateUploadUrl` → upload → store `_storage` id).
+
+### Offline-first on mobile (D1)
+Convex is online-first (live queries over WebSocket), so offline entry creation
+is handled by a small client-side outbox:
+1. Compose entry offline → save to a persisted outbox (AsyncStorage for metadata,
+   compressed photo files in the app's document directory). Show it immediately
+   in the journey timeline as "pending sync".
+2. When connectivity returns (NetInfo / Convex connection state), for each item:
+   upload photos → call `entries.create` with a client-generated `clientId`.
+3. `entries.create` is **idempotent on `clientId`**, so retries never duplicate.
+4. Failures (e.g. author removed meanwhile) stay in the outbox with an error.
+- Journeys/feeds viewed online are cached for offline reading on a best-effort basis (later).
+
+### Maps
+- Web: MapLibre GL (`react-map-gl/maplibre`) with an OpenStreetMap-based topo/outdoor style.
+- Native: `react-native-maps` (Apple/Google) for the POC.
+- Shared util: `buildAuthorPaths(entries) → { authorId, coords[] }[]`.
+
+### Design system (D11)
+- Palette: forest `#2F4A3A`, moss `#5B7553`, sage `#A3B18A`, parchment `#F2EBDD`,
+  sand `#D9C9A8`, bark `#6B4F3A`, rust (accent/danger) `#A4532B`, ink `#1F2420`.
+- Border radius **0–2px**, 1px ink-tinted rules like a ruled notebook, serif
+  display type (journal) + clean sans for UI, monospace for coordinates/timestamps
+  (map-label feel).
+
+---
+
+## 4. Milestones
+
+| # | Milestone |
+|---|---|
+| 0 | Scaffold, theme tokens, CI basics |
+| 1 | Auth + profiles + privacy settings |
+| 2 | Journeys (tags, visibility, delay) |
+| 3 | Entries (text, photos, GPS/EXIF, edit location) + timeline |
+| 4 | Map view (per-author polylines) — web + native |
+| 5 | Location delay enforcement + override warning + geospatial index |
+| 6 | Members (invite/accept) |
+| 7 | Follow + feed + explore-by-tag |
+| 8 | Offline outbox on mobile |
+
+## 5. Testing
+- `convex-test` + Vitest for functions: permissions, delay redaction, idempotent create, tags.
+- Unit tests for path building, tag normalization.
+- Manual smoke on web; Expo Go for native.

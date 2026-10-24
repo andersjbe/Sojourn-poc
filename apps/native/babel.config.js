@@ -1,0 +1,18 @@
+module.exports = (api) => {
+  api.cache(true);
+
+  return {
+    presets: ["babel-preset-expo"],
+    plugins: [
+      require("@varlock/expo-integration/babel-plugin"),
+      require("./babel-plugins/hermes-async-arrow-rest-params"),
+      [
+        "react-native-unistyles/plugin",
+        {
+          root: "app",
+          autoProcessImports: ["@/components"],
+        },
+      ],
+    ],
+  };
+};
