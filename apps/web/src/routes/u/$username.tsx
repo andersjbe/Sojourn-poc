@@ -49,7 +49,7 @@ function ProfilePage() {
           {profile.bio && <p className="mt-3 max-w-prose font-serif">{profile.bio}</p>}
         </div>
         {data.isSelf ? (
-          <Button variant="outline" render={<Link to="/settings" />}>
+          <Button variant="outline" nativeButton={false} render={<Link to="/settings" />}>
             Edit profile
           </Button>
         ) : isAuthenticated && profile.profileVisibility !== "private" ? (

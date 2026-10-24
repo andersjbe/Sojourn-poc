@@ -84,7 +84,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button render={<Link to="/sign-in" />}>Sign in</Button>
+            <Button nativeButton={false} render={<Link to="/sign-in" />}>Sign in</Button>
           )}
         </div>
       </div>

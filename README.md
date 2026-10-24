@@ -1,48 +1,89 @@
-# sojourn
+# Sojourn
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Convex, and more.
+Trail journals for long-distance hikers. A **journey** is a collection of journal
+**entries** (text and/or up to 5 photos), each with a timestamp and a location.
+A journey's entries are joined in time order and drawn on a map — one line per
+author.
 
-## Features
+This is a proof of concept. Product decisions and the roadmap live in
+[`docs/PLAN.md`](docs/PLAN.md).
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Convex** - Reactive backend-as-a-service platform
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
+## What's in the POC
 
-## Getting Started
+- **Journeys** on any trail, labelled with free-form tags (`#at`, `#AppalachianTrail`, …)
+- **Entries** with text + photos, GPS or photo-EXIF location/time, and editable location
+- **Location safety delay**: the public sees an entry's location only after the
+  journey's delay (24h by default). Authors can override per entry after a warning.
+  Enforced server-side; photos are EXIF-stripped before upload.
+- **Co-authors**: the owner invites hikers, who must accept before posting
+- **Follow + feed**, with per-profile privacy (open / approve followers / private)
+- **Explore** journeys by tag, search hikers
+- **Offline-first on mobile**: new entries go to an on-device outbox and sync when
+  there's signal
+- **Web** (TanStack Router + MapLibre) and **iOS/Android** (Expo + react-native-maps)
 
-First, install the dependencies:
+## Project structure
+
+```
+apps/
+  web/        React + TanStack Router web app (MapLibre maps)
+  native/     Expo + Unistyles app for iOS/Android (offline outbox in lib/outbox.tsx)
+packages/
+  backend/    Convex functions, schema, Better Auth, geospatial index, tests
+    convex/lib/  shared pure helpers (tags, map paths, constants) also used by the apps
+  ui/         shared shadcn/ui primitives + theme tokens for web
+docs/PLAN.md  product plan and decisions
+```
+
+## Getting started
 
 ```bash
 bun install
+bun run dev:setup          # create/connect a Convex deployment (writes packages/backend/.env.local)
 ```
 
-## Convex Setup
-
-This project uses Convex as a backend. You'll need to set up Convex before running the app:
+Set the Convex environment variables Better Auth needs:
 
 ```bash
-bun run dev:setup
+cd packages/backend
+npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+npx convex env set SITE_URL http://localhost:3001
 ```
 
-Follow the prompts to create a new Convex project and connect it to your application.
+Copy your deployment URLs into the apps (`apps/web/.env`, `apps/native/.env`):
 
-Copy environment variables from `packages/backend/.env.local` to `apps/*/.env`.
+```
+VITE_CONVEX_URL=https://<deployment>.convex.cloud
+VITE_CONVEX_SITE_URL=https://<deployment>.convex.site
+EXPO_PUBLIC_CONVEX_URL=https://<deployment>.convex.cloud
+EXPO_PUBLIC_CONVEX_SITE_URL=https://<deployment>.convex.site
+```
 
-Then, run the development server:
+Then:
 
 ```bash
-bun run dev
+bun run dev                # Convex + web (http://localhost:3001) + Expo
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-From `apps/native`, run the `ios` script for iOS or the `android` script for Android to build and launch the app. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/) for device setup.
-Your app will connect to the Convex cloud backend automatically.
+The native app uses native modules (maps, Unistyles, image manipulation), so run it
+in a development build: `bun run ios` / `bun run android` from `apps/native`.
+
+> `packages/backend/convex/_generated` was written by hand to match Convex codegen
+> (no deployment was available when it was scaffolded). The first `convex dev`
+> regenerates it — commit the result.
+
+## Checks
+
+```bash
+bun run check-types        # all packages
+bun run test               # Convex function tests (convex-test + vitest)
+```
+
+## Notes
+
+- Map tiles come from [OpenTopoMap](https://opentopomap.org) (CC-BY-SA). Their
+  servers are for light use; switch to a hosted tile provider before a real launch.
+- Android release builds of `react-native-maps` need a Google Maps API key.
 
 ## UI Customization
 

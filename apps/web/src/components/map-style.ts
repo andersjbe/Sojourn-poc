@@ -1,4 +1,9 @@
-import type { StyleSpecification } from "maplibre-gl";
+import { type StyleSpecification, setWorkerUrl } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+
+// MapLibre resolves its worker relative to its own module, which breaks once
+// bundled; point it at the (self-contained) worker file emitted by Vite.
+setWorkerUrl(workerUrl);
 
 /** OpenTopoMap raster tiles: contour lines and trails, a paper-map look. */
 export const TOPO_STYLE: StyleSpecification = {

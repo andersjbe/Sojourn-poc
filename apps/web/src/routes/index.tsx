@@ -38,7 +38,7 @@ function Feed() {
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
       <div className="flex items-end justify-between">
         <h1 className="text-3xl">From the trail</h1>
-        <Button variant="outline" render={<Link to="/journeys/new" />}>
+        <Button variant="outline" nativeButton={false} render={<Link to="/journeys/new" />}>
           New journey
         </Button>
       </div>
@@ -74,10 +74,10 @@ function Landing() {
             one pinned to the map — and share the whole line of your journey with the people following along.
           </p>
           <div className="mt-6 flex gap-2">
-            <Button size="lg" render={<Link to="/sign-in" />}>
+            <Button size="lg" nativeButton={false} render={<Link to="/sign-in" />}>
               Start your journal
             </Button>
-            <Button size="lg" variant="outline" render={<Link to="/explore" />}>
+            <Button size="lg" variant="outline" nativeButton={false} render={<Link to="/explore" />}>
               Explore journeys
             </Button>
           </div>

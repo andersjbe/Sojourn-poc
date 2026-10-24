@@ -69,12 +69,12 @@ function JourneyPage() {
           </div>
           <div className="flex gap-2">
             {access.isMember && (
-              <Button render={<Link to="/journeys/$journeyId/new-entry" params={{ journeyId }} />}>
+              <Button nativeButton={false} render={<Link to="/journeys/$journeyId/new-entry" params={{ journeyId }} />}>
                 <Plus /> New entry
               </Button>
             )}
             {access.role === "owner" && (
-              <Button variant="outline" render={<Link to="/journeys/$journeyId/edit" params={{ journeyId }} />}>
+              <Button variant="outline" nativeButton={false} render={<Link to="/journeys/$journeyId/edit" params={{ journeyId }} />}>
                 <Settings /> Manage
               </Button>
             )}

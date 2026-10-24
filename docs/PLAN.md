@@ -165,17 +165,26 @@ is handled by a small client-side outbox:
 
 ## 4. Milestones
 
-| # | Milestone |
-|---|---|
-| 0 | Scaffold, theme tokens, CI basics |
-| 1 | Auth + profiles + privacy settings |
-| 2 | Journeys (tags, visibility, delay) |
-| 3 | Entries (text, photos, GPS/EXIF, edit location) + timeline |
-| 4 | Map view (per-author polylines) — web + native |
-| 5 | Location delay enforcement + override warning + geospatial index |
-| 6 | Members (invite/accept) |
-| 7 | Follow + feed + explore-by-tag |
-| 8 | Offline outbox on mobile |
+| # | Milestone | POC status |
+|---|---|---|
+| 0 | Scaffold, theme tokens, CI basics | ✅ (no CI workflow yet) |
+| 1 | Auth + profiles + privacy settings | ✅ web + native |
+| 2 | Journeys (tags, visibility, delay) | ✅ create on both; full management on web |
+| 3 | Entries (text, photos, GPS/EXIF, edit location) + timeline | ✅ |
+| 4 | Map view (per-author polylines) — web + native | ✅ |
+| 5 | Location delay enforcement + override warning + geospatial index | ✅ (`entries.inArea` not yet used in UI) |
+| 6 | Members (invite/accept) | ✅ invite on both; remove/cancel on web |
+| 7 | Follow + feed + explore-by-tag | ✅ |
+| 8 | Offline outbox on mobile | ✅ create offline; edits need signal |
+
+### Known gaps / next steps
+- Native: journey settings (edit/delete, delay, visibility) and entry time editing are web-only for now.
+- Offline *reading* (cached journeys/feed) isn't implemented; only writing is offline.
+- `followers` visibility is based on following the journey **owner** (not co-authors).
+- No journey cover photo, comments/reactions, or notifications yet.
+- Feed is fan-out-on-read — fine for a POC, revisit for scale.
+- Map tiles: OpenTopoMap is for light use; pick a hosted provider (and offline tiles) before launch.
+- Convex `_generated/` was hand-written; regenerate with `convex dev`.
 
 ## 5. Testing
 - `convex-test` + Vitest for functions: permissions, delay redaction, idempotent create, tags.
