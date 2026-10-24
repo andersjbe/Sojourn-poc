@@ -1,1 +1,28 @@
 @import "@sojourn/ui/globals.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+/* Faint survey grid, like a topo map sheet under the journal. */
+.map-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 45%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Ruled journal page. */
+.ruled {
+  border-left: 3px double var(--border);
+}
+
+.maplibregl-ctrl-group,
+.maplibregl-popup-content {
+  border-radius: 0 !important;
+}

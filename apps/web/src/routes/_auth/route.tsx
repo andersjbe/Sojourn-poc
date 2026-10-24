@@ -1,32 +1,34 @@
+import { api } from "@sojourn/backend/convex/_generated/api";
 import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
-import { useState } from "react";
+import { AuthLoading, Authenticated, Unauthenticated, useQuery } from "convex/react";
 
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
+import { AuthForms } from "@/components/auth-forms";
+import { CreateProfile } from "@/components/create-profile";
+import Loader from "@/components/loader";
 
 export const Route = createFileRoute("/_auth")({
   component: AuthLayout,
 });
 
 function AuthLayout() {
-  const [showSignIn, setShowSignIn] = useState(false);
-
   return (
     <>
       <Authenticated>
-        <Outlet />
+        <ProfileGate />
       </Authenticated>
       <Unauthenticated>
-        {showSignIn ? (
-          <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-        ) : (
-          <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-        )}
+        <AuthForms />
       </Unauthenticated>
       <AuthLoading>
-        <div>Loading...</div>
+        <Loader />
       </AuthLoading>
     </>
   );
+}
+
+function ProfileGate() {
+  const me = useQuery(api.profiles.me);
+  if (me === undefined) return <Loader />;
+  if (me && !me.profile) return <CreateProfile />;
+  return <Outlet />;
 }

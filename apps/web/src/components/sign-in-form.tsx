@@ -2,17 +2,12 @@ import { Button } from "@sojourn/ui/components/button";
 import { Input } from "@sojourn/ui/components/input";
 import { Label } from "@sojourn/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
-  const navigate = useNavigate({
-    from: "/",
-  });
-
   const form = useForm({
     defaultValues: {
       email: "",
@@ -26,9 +21,6 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         },
         {
           onSuccess: () => {
-            navigate({
-              to: "/dashboard",
-            });
             toast.success("Sign in successful");
           },
           onError: (error) => {
@@ -46,8 +38,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   });
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
+    <div className="mx-auto mt-10 w-full max-w-md border border-border bg-card p-6">
+      <h1 className="mb-6 text-center text-3xl">Welcome Back</h1>
 
       <form
         onSubmit={(e) => {
@@ -71,7 +63,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error, index) => (
-                  <p key={`${field.name}-error-${index}`} className="text-red-500">
+                  <p key={`${field.name}-error-${index}`} className="text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -94,7 +86,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error, index) => (
-                  <p key={`${field.name}-error-${index}`} className="text-red-500">
+                  <p key={`${field.name}-error-${index}`} className="text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -118,7 +110,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         <Button
           variant="link"
           onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
+          
         >
           Need an account? Sign Up
         </Button>
