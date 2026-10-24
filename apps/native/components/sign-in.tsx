@@ -150,20 +150,21 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     marginTop: 24,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 22,
+    fontFamily: theme.fonts.serif,
     color: theme.colors.typography,
     marginBottom: 16,
   },
   errorContainer: {
     marginBottom: 16,
     padding: 12,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   errorText: {
     color: theme.colors.destructive,
@@ -172,7 +173,7 @@ const styles = StyleSheet.create((theme) => ({
   input: {
     marginBottom: 12,
     padding: 16,
-    borderRadius: 6,
+    borderRadius: 0,
     color: theme.colors.typography,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -180,12 +181,13 @@ const styles = StyleSheet.create((theme) => ({
   button: {
     backgroundColor: theme.colors.primary,
     padding: 16,
-    borderRadius: 6,
+    borderRadius: 0,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
   buttonText: {
-    fontWeight: "500",
+    fontWeight: "600",
+    color: theme.colors.primaryForeground,
   },
 }));
