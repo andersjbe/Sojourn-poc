@@ -1,0 +1,4 @@
+export const MAX_PHOTOS_PER_ENTRY = 5;
+export const DEFAULT_LOCATION_DELAY_HOURS = 24;
+export const MAX_LOCATION_DELAY_HOURS = 72;
+export const MAX_BODY_LENGTH = 10_000;
