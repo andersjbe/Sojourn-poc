@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { buildAuthorPaths } from "./lib/paths";
+import { buildPath } from "./lib/paths";
 import { parseTags } from "./lib/tags";
 import schema from "./schema";
 
@@ -100,7 +100,7 @@ describe("journeys", () => {
 });
 
 describe("entries", () => {
-  async function journeyWithEntry(shareLocationNow: boolean) {
+  async function journeyWithEntry(publishNow: boolean) {
     const t = setup();
     const owner = await hiker(t, "owner");
     const journeyId = await owner.mutation(api.journeys.create, { title: "PNT", tags: ["pnt"] });
@@ -111,20 +111,19 @@ describe("entries", () => {
       location: SPRINGER,
       body: "Day one",
       photoIds: [],
-      shareLocationNow,
+      publishNow,
     });
     return { t, owner, journeyId, entryId };
   }
 
-  test("location is hidden from the public until the delay passes", async () => {
-    const { t, owner, journeyId } = await journeyWithEntry(false);
-    const [publicView] = (await t.query(api.entries.listForJourney, { journeyId }))!;
-    expect(publicView.location).toBeNull();
-    expect(publicView.body).toBe("Day one");
+  test("the whole entry is hidden from the public until the delay passes", async () => {
+    const { t, owner, journeyId, entryId } = await journeyWithEntry(false);
+    expect(await t.query(api.entries.listForJourney, { journeyId })).toEqual([]);
+    expect(await t.query(api.entries.get, { entryId })).toBeNull();
     const [ownerView] = (await owner.query(api.entries.listForJourney, { journeyId }))!;
     expect(ownerView.location).toEqual(SPRINGER);
-    expect(ownerView.locationStatus?.isPublic).toBe(false);
-    // Hidden locations are not in the geospatial index either.
+    expect(ownerView.releaseStatus?.isPublic).toBe(false);
+    // Unpublished entries are not in the geospatial index either.
     const area = { west: -85, south: 34, east: -83, north: 35 };
     expect(await t.query(api.entries.inArea, { rectangle: area })).toHaveLength(0);
 
@@ -132,22 +131,23 @@ describe("entries", () => {
     await t.finishInProgressScheduledFunctions();
 
     const [released] = (await t.query(api.entries.listForJourney, { journeyId }))!;
+    expect(released.body).toBe("Day one");
     expect(released.location).toEqual(SPRINGER);
     expect(await t.query(api.entries.inArea, { rectangle: area })).toHaveLength(1);
   });
 
-  test("'share location now' publishes immediately", async () => {
+  test("'publish now' skips the delay", async () => {
     const { t, journeyId } = await journeyWithEntry(true);
     const [view] = (await t.query(api.entries.listForJourney, { journeyId }))!;
     expect(view.location).toEqual(SPRINGER);
   });
 
-  test("raising the delay hides an already-released location again", async () => {
+  test("raising the delay hides an already-published entry again", async () => {
     const { t, owner, journeyId } = await journeyWithEntry(false);
-    await owner.mutation(api.journeys.update, { journeyId, locationDelayHours: 0 });
-    expect((await t.query(api.entries.listForJourney, { journeyId }))![0].location).toEqual(SPRINGER);
-    await owner.mutation(api.journeys.update, { journeyId, locationDelayHours: 48 });
-    expect((await t.query(api.entries.listForJourney, { journeyId }))![0].location).toBeNull();
+    await owner.mutation(api.journeys.update, { journeyId, delayHours: 0 });
+    expect(await t.query(api.entries.listForJourney, { journeyId })).toHaveLength(1);
+    await owner.mutation(api.journeys.update, { journeyId, delayHours: 48 });
+    expect(await t.query(api.entries.listForJourney, { journeyId })).toHaveLength(0);
   });
 
   test("create is idempotent on clientId (offline retries)", async () => {
@@ -159,7 +159,7 @@ describe("entries", () => {
       location: SPRINGER,
       body: "Day one",
       photoIds: [],
-      shareLocationNow: false,
+      publishNow: false,
     });
     expect(again).toBe(entryId);
     expect(await owner.query(api.entries.listForJourney, { journeyId })).toHaveLength(1);
@@ -167,7 +167,7 @@ describe("entries", () => {
 
   test("validates content, photo count, and location", async () => {
     const { t, owner, journeyId } = await journeyWithEntry(false);
-    const base = { journeyId, recordedAt: Date.now(), location: SPRINGER, shareLocationNow: false };
+    const base = { journeyId, recordedAt: Date.now(), location: SPRINGER, publishNow: false };
     await expect(
       owner.mutation(api.entries.create, { ...base, clientId: "empty", photoIds: [] }),
     ).rejects.toThrow(/text or at least one photo/);
@@ -210,7 +210,7 @@ describe("multiple authors", () => {
       location: SPRINGER,
       body: "hi",
       photoIds: [],
-      shareLocationNow: false,
+      publishNow: false,
     };
 
     await expect(partner.mutation(api.entries.create, { ...entry, clientId: "p0" })).rejects.toThrow(
@@ -235,9 +235,9 @@ describe("multiple authors", () => {
     );
     await expect(stranger.mutation(api.entries.remove, { entryId: partnerEntry })).rejects.toThrow();
 
-    // Members see live locations; one path per author.
+    // Members see unpublished entries; all authors share one line.
     const entries = (await partner.query(api.entries.listForJourney, { journeyId }))!;
-    expect(buildAuthorPaths(entries)).toHaveLength(2);
+    expect(buildPath(entries)).toEqual([SPRINGER, NEELS_GAP]);
 
     // Removed authors' entries stay.
     await owner.mutation(api.members.remove, { journeyId, userId: "user_partner" });
@@ -265,11 +265,13 @@ describe("feed", () => {
         location: SPRINGER,
         body: clientId,
         photoIds: [],
-        shareLocationNow: false,
+        publishNow: false,
       });
     await post(a, pub, "a1", Date.now() - 2 * HOUR);
     await post(a, priv, "a2", Date.now() - HOUR);
     await post(b, other, "b1", Date.now());
+    vi.advanceTimersByTime(24 * HOUR + 1000);
+    await t.finishInProgressScheduledFunctions();
 
     await reader.mutation(api.follows.follow, { userId: "user_alpha" });
     expect((await reader.query(api.feed.get, {})).map((e) => e.body)).toEqual(["a1"]);
@@ -293,12 +295,13 @@ describe("pure helpers", () => {
     expect(parseTags("#at #AppalachianTrail, nobo #AT ##")).toEqual(["at", "AppalachianTrail", "nobo"]);
   });
 
-  test("buildAuthorPaths sorts by time and skips hidden locations", () => {
-    const paths = buildAuthorPaths([
-      { authorId: "a", recordedAt: 2, location: NEELS_GAP },
-      { authorId: "a", recordedAt: 1, location: SPRINGER },
-      { authorId: "a", recordedAt: 3, location: null },
+  test("buildPath joins all authors in time order and skips missing locations", () => {
+    const path = buildPath([
+      { authorId: "a", recordedAt: 3, location: NEELS_GAP },
+      { authorId: "b", recordedAt: 2, location: SPRINGER },
+      { authorId: "a", recordedAt: 1, location: NEELS_GAP },
+      { authorId: "b", recordedAt: 4, location: null },
     ]);
-    expect(paths).toEqual([{ authorId: "a", coords: [SPRINGER, NEELS_GAP] }]);
+    expect(path).toEqual([NEELS_GAP, SPRINGER, NEELS_GAP]);
   });
 });

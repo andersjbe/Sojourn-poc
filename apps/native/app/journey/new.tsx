@@ -1,6 +1,6 @@
 import { api } from "@sojourn/backend/convex/_generated/api";
 import type { Doc } from "@sojourn/backend/convex/_generated/dataModel";
-import { DEFAULT_LOCATION_DELAY_HOURS } from "@sojourn/backend/convex/lib/constants";
+import { DEFAULT_DELAY_HOURS } from "@sojourn/backend/convex/lib/constants";
 import { parseTags } from "@sojourn/backend/convex/lib/tags";
 import { useMutation } from "convex/react";
 import { router } from "expo-router";
@@ -25,7 +25,7 @@ export default function NewJourneyScreen() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState<Doc<"journeys">["visibility"]>("public");
-  const [delay, setDelay] = useState(DEFAULT_LOCATION_DELAY_HOURS);
+  const [delay, setDelay] = useState(DEFAULT_DELAY_HOURS);
   const [saving, setSaving] = useState(false);
 
   return (
@@ -35,9 +35,9 @@ export default function NewJourneyScreen() {
       <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" placeholder="#at #AppalachianTrail #nobo" />
       <Label>Who can see it</Label>
       <Segments options={VISIBILITY} value={visibility} onChange={setVisibility} />
-      <Label>Location safety delay</Label>
+      <Label>Safety delay</Label>
       <Segments options={DELAYS.map((d) => ({ value: d, label: `${d}h` }))} value={delay} onChange={setDelay} />
-      <Muted>Viewers see each entry's location only after this delay. You can override it per entry.</Muted>
+      <Muted>Entries stay hidden from everyone but you and your co-authors for this long. You can publish individual entries immediately.</Muted>
       <Button
         title="Create journey"
         loading={saving}
@@ -49,7 +49,7 @@ export default function NewJourneyScreen() {
               description,
               tags: parseTags(tags),
               visibility,
-              locationDelayHours: delay,
+              delayHours: delay,
               status: "active",
             });
             router.replace({ pathname: "/journey/[id]", params: { id } });

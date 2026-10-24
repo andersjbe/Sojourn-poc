@@ -57,7 +57,7 @@ function EditJourney() {
       <section className="space-y-3 border border-border bg-card p-6">
         <h2 className="text-xl">Authors</h2>
         <p className="text-sm text-muted-foreground">
-          Hiking with someone? Invite them to post entries to this journey. Their path is drawn in its own color.
+          Hiking with someone? Invite them to post entries to this journey. Their entries join the same line on the map.
         </p>
         <ul className="divide-y divide-border border border-border">
           {members.map((m) => (

@@ -84,7 +84,7 @@ function Landing() {
         </div>
         <ul className="space-y-3 self-center font-mono text-xs text-muted-foreground">
           <li>◆ Any trail — tag it #at, #pct, #pnt or your own</li>
-          <li>◆ Locations delayed by default to keep you safe</li>
+          <li>◆ Posts delayed by default to keep you safe</li>
           <li>◆ Hike with partners: co-authored journeys</li>
           <li>◆ Write offline on the phone, sync in town</li>
         </ul>

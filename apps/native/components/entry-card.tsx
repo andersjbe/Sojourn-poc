@@ -22,7 +22,7 @@ export function EntryCard({
   canEdit?: boolean;
   onPress?: () => void;
 }) {
-  const status = entry.locationStatus;
+  const status = entry.releaseStatus;
   return (
     <Pressable onPress={onPress} style={[styles.card, selected && styles.selected]}>
       <View style={styles.header}>
@@ -55,10 +55,10 @@ export function EntryCard({
       )}
       <View style={styles.footer}>
         <Text style={styles.mono}>
-          {entry.location ? `◆ ${formatCoords(entry.location)}` : "◇ Location hidden for safety"}
+          ◆ {formatCoords(entry.location)}
         </Text>
-        {status && !status.isPublic && <Text style={styles.mono}>Public {formatDateTime(status.releaseAt)}</Text>}
-        {status && entry.shareLocationNow && <Text style={[styles.mono, styles.live]}>shared live</Text>}
+        {status && !status.isPublic && <Text style={styles.mono}>⧗ Public {formatDateTime(status.releaseAt)}</Text>}
+        {status && entry.publishNow && <Text style={[styles.mono, styles.live]}>published immediately</Text>}
         {canEdit && (
           <Link href={{ pathname: "/entry/[id]/edit", params: { id: entry._id } }}>
             <Text style={[styles.mono, styles.edit]}>Edit</Text>

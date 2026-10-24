@@ -42,7 +42,8 @@ export default defineSchema({
     tags: v.array(v.string()), // display form, e.g. "AppalachianTrail"
     status: journeyStatus,
     visibility: journeyVisibility,
-    locationDelayHours: v.number(),
+    // Entries are hidden from non-members until this long after recordedAt.
+    delayHours: v.number(),
     startedOn: v.optional(v.string()), // YYYY-MM-DD
     endedOn: v.optional(v.string()),
   })
@@ -77,10 +78,10 @@ export default defineSchema({
     location,
     body: v.optional(v.string()),
     photoIds: v.array(v.id("_storage")),
-    // Author chose to skip the safety delay for this entry.
-    shareLocationNow: v.boolean(),
-    // True once non-members may see `location` (delay passed or override).
-    locationPublic: v.boolean(),
+    // Author chose to skip the safety delay and publish this entry immediately.
+    publishNow: v.boolean(),
+    // True once non-members may see the entry (delay passed or publishNow).
+    published: v.boolean(),
   })
     .index("by_journey_time", ["journeyId", "recordedAt"])
     .index("by_author_time", ["authorId", "recordedAt"])

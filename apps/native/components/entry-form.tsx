@@ -22,7 +22,7 @@ export type EntryFormValues = {
   body: string;
   recordedAt: number;
   location: LatLng;
-  shareLocationNow: boolean;
+  publishNow: boolean;
   photos: FormPhoto[];
 };
 
@@ -35,7 +35,7 @@ export function EntryForm({
     body: string | null;
     recordedAt: number;
     location: LatLng | null;
-    shareLocationNow: boolean;
+    publishNow: boolean;
     photos: { id: Id<"_storage">; url: string }[];
   };
   submitLabel: string;
@@ -45,7 +45,7 @@ export function EntryForm({
   const [body, setBody] = useState(initial?.body ?? "");
   const [recordedAt, setRecordedAt] = useState(initial?.recordedAt ?? Date.now());
   const [location, setLocation] = useState<LatLng | null>(initial?.location ?? null);
-  const [shareNow, setShareNow] = useState(initial?.shareLocationNow ?? false);
+  const [publishNow, setPublishNow] = useState(initial?.publishNow ?? false);
   const [photos, setPhotos] = useState<FormPhoto[]>(
     initial?.photos.map((p) => ({ kind: "existing" as const, ...p })) ?? [],
   );
@@ -97,14 +97,14 @@ export function EntryForm({
     if (meta.takenAt) setRecordedAt(meta.takenAt);
   }
 
-  function toggleShareNow(value: boolean) {
-    if (!value) return setShareNow(false);
+  function togglePublishNow(value: boolean) {
+    if (!value) return setPublishNow(false);
     Alert.alert(
-      "Share your location in real time?",
-      "Anyone who can see this journey will be able to see exactly where you are right now, not after the usual delay.\n\nSolo hikers can be put at risk by sharing live locations. Only do this if you're comfortable with that.",
+      "Publish this entry right away?",
+      "Anyone who can see this journey will see this entry immediately — including exactly where you are right now — instead of after the usual delay.\n\nSolo hikers can be put at risk by sharing their live location. Only do this if you're comfortable with that.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Share now", style: "destructive", onPress: () => setShareNow(true) },
+        { text: "Publish now", style: "destructive", onPress: () => setPublishNow(true) },
       ],
     );
   }
@@ -114,7 +114,7 @@ export function EntryForm({
     if (!body.trim() && photos.length === 0) return Alert.alert("Empty entry", "Add some text or a photo.");
     setBusy(true);
     try {
-      await onSubmit({ body, recordedAt, location, shareLocationNow: shareNow, photos });
+      await onSubmit({ body, recordedAt, location, publishNow, photos });
     } finally {
       setBusy(false);
     }
@@ -169,14 +169,14 @@ export function EntryForm({
 
       <View style={styles.shareRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.shareTitle}>Share this location now</Text>
+          <Text style={styles.shareTitle}>Publish this entry now</Text>
           <Text style={styles.shareHint}>
-            By default your exact location is shown to the public only after this journey's safety delay.
+            By default entries are shown to the public only after this journey's safety delay.
           </Text>
         </View>
         <Switch
-          value={shareNow}
-          onValueChange={toggleShareNow}
+          value={publishNow}
+          onValueChange={togglePublishNow}
           trackColor={{ true: theme.colors.destructive, false: theme.colors.border }}
         />
       </View>

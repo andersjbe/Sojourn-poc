@@ -1,4 +1,4 @@
-import { type LatLng, PATH_COLORS, buildAuthorPaths } from "@sojourn/backend/convex/lib/paths";
+import { type LatLng, PATH_COLORS, buildPath } from "@sojourn/backend/convex/lib/paths";
 import { useEffect, useMemo, useRef } from "react";
 import { Text, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
@@ -8,7 +8,7 @@ import { TopoTiles } from "./map-tiles";
 
 export type MapEntry = { _id: string; authorId: string; recordedAt: number; location: LatLng | null };
 
-/** Entries joined with straight lines in time order, one line per author. */
+/** All entries joined with one straight-segment line in time order; markers colored by author. */
 export function JourneyMap({
   entries,
   selectedId,
@@ -19,11 +19,11 @@ export function JourneyMap({
   onSelect?: (entryId: string) => void;
 }) {
   const mapRef = useRef<MapView>(null);
-  const paths = useMemo(() => buildAuthorPaths(entries), [entries]);
-  const colors = useMemo(
-    () => new Map(paths.map((p, i) => [p.authorId, PATH_COLORS[i % PATH_COLORS.length]])),
-    [paths],
-  );
+  const path = useMemo(() => buildPath(entries), [entries]);
+  const colors = useMemo(() => {
+    const authors = [...new Set(entries.map((e) => e.authorId))];
+    return new Map(authors.map((id, i) => [id, PATH_COLORS[i % PATH_COLORS.length]]));
+  }, [entries]);
   const located = entries.filter((e): e is MapEntry & { location: LatLng } => e.location !== null);
   const key = located.map((e) => e._id).join(",");
 
@@ -43,15 +43,12 @@ export function JourneyMap({
     <View style={styles.container}>
       <MapView ref={mapRef} style={StyleSheet.absoluteFill} mapType="none" toolbarEnabled={false}>
         <TopoTiles />
-        {paths.map((p) => (
-          <Polyline
-            key={p.authorId}
-            coordinates={p.coords.map((c) => ({ latitude: c.lat, longitude: c.lng }))}
-            strokeColor={colors.get(p.authorId)}
-            strokeWidth={3}
-            lineDashPattern={[8, 4]}
-          />
-        ))}
+        <Polyline
+          coordinates={path.map((c) => ({ latitude: c.lat, longitude: c.lng }))}
+          strokeColor={PATH_COLORS[0]}
+          strokeWidth={3}
+          lineDashPattern={[8, 4]}
+        />
         {located.map((e) => (
           <Marker
             key={e._id}

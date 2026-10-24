@@ -26,7 +26,7 @@ export type OutboxItem = {
   recordedAt: number;
   location: LatLng;
   body?: string;
-  shareLocationNow: boolean;
+  publishNow: boolean;
   /** Local photo files, and their storage ids once uploaded. */
   photos: { uri: string; storageId?: Id<"_storage"> }[];
   /** Set when the server rejected the entry; it stays until the user discards it. */
@@ -126,7 +126,7 @@ export function OutboxProvider({ children }: { children: React.ReactNode }) {
               recordedAt: item.recordedAt,
               location: item.location,
               body: item.body,
-              shareLocationNow: item.shareLocationNow,
+              publishNow: item.publishNow,
               photoIds: photos.map((p) => p.storageId!),
             }),
           );

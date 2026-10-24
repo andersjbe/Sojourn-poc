@@ -1,4 +1,4 @@
-import { type LatLng, PATH_COLORS, boundsOf, buildAuthorPaths } from "@sojourn/backend/convex/lib/paths";
+import { type LatLng, PATH_COLORS, boundsOf, buildPath } from "@sojourn/backend/convex/lib/paths";
 import { cn } from "@sojourn/ui/lib/utils";
 import { useEffect, useMemo, useRef } from "react";
 import Map, { Layer, type MapRef, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
@@ -12,7 +12,7 @@ export type MapEntry = {
   location: LatLng | null;
 };
 
-/** Entries joined with straight lines in time order, one line per author. */
+/** All entries joined with one straight-segment line in time order; markers colored by author. */
 export function JourneyMap({
   entries,
   selectedId,
@@ -25,24 +25,22 @@ export function JourneyMap({
   className?: string;
 }) {
   const mapRef = useRef<MapRef>(null);
-  const paths = useMemo(() => buildAuthorPaths(entries), [entries]);
+  const path = useMemo(() => buildPath(entries), [entries]);
   const colorFor = useMemo(() => {
-    const colors = new globalThis.Map(paths.map((p, i) => [p.authorId, PATH_COLORS[i % PATH_COLORS.length]]));
+    const authors = [...new Set(entries.map((e) => e.authorId))];
+    const colors = new globalThis.Map(authors.map((id, i) => [id, PATH_COLORS[i % PATH_COLORS.length]]));
     return (authorId: string) => colors.get(authorId) ?? PATH_COLORS[0];
-  }, [paths]);
+  }, [entries]);
   const located = entries.filter((e): e is MapEntry & { location: LatLng } => e.location !== null);
   const bounds = boundsOf(located.map((e) => e.location));
 
   const geojson = useMemo(
     () => ({
-      type: "FeatureCollection" as const,
-      features: paths.map((p) => ({
-        type: "Feature" as const,
-        properties: { color: colorFor(p.authorId) },
-        geometry: { type: "LineString" as const, coordinates: p.coords.map((c) => [c.lng, c.lat]) },
-      })),
+      type: "Feature" as const,
+      properties: {},
+      geometry: { type: "LineString" as const, coordinates: path.map((c) => [c.lng, c.lat]) },
     }),
-    [paths, colorFor],
+    [path],
   );
 
   // Fit to the whole route whenever the set of points changes.
@@ -82,7 +80,7 @@ export function JourneyMap({
           <Layer
             id="paths-line"
             type="line"
-            paint={{ "line-color": ["get", "color"], "line-width": 3, "line-dasharray": [2, 1] }}
+            paint={{ "line-color": PATH_COLORS[0], "line-width": 3, "line-dasharray": [2, 1] }}
             layout={{ "line-join": "miter", "line-cap": "butt" }}
           />
         </Source>

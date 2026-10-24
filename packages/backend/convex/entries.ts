@@ -4,8 +4,8 @@ import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { getJourneyAccess, getViewerId, requireJourneyRole, requireViewerId } from "./lib/access";
 import { MAX_BODY_LENGTH, MAX_PHOTOS_PER_ENTRY } from "./lib/constants";
-import { toEntryView } from "./lib/entryView";
-import { entryLocations, locationReleaseAt, syncLocationRelease } from "./lib/geo";
+import { canSeeEntry, toEntryView } from "./lib/entryView";
+import { entryLocations, releaseAt, syncRelease } from "./lib/geo";
 import { location } from "./schema";
 
 function validateLocation(loc: { lat: number; lng: number }) {
@@ -49,7 +49,7 @@ export const create = mutation({
     location,
     body: v.optional(v.string()),
     photoIds: v.array(v.id("_storage")),
-    shareLocationNow: v.boolean(),
+    publishNow: v.boolean(),
   },
   handler: async (ctx, args) => {
     const { viewerId, journey } = await requireJourneyRole(ctx, args.journeyId, ["owner", "author"]);
@@ -69,10 +69,10 @@ export const create = mutation({
       location: args.location,
       body: args.body?.trim() || undefined,
       photoIds: args.photoIds,
-      shareLocationNow: args.shareLocationNow,
-      locationPublic: false,
+      publishNow: args.publishNow,
+      published: false,
     });
-    await syncLocationRelease(ctx, (await ctx.db.get(entryId))!, journey);
+    await syncRelease(ctx, (await ctx.db.get(entryId))!, journey);
     return entryId;
   },
 });
@@ -85,7 +85,7 @@ export const update = mutation({
     location: v.optional(location),
     body: v.optional(v.string()),
     photoIds: v.optional(v.array(v.id("_storage"))),
-    shareLocationNow: v.optional(v.boolean()),
+    publishNow: v.optional(v.boolean()),
   },
   handler: async (ctx, { entryId, ...args }) => {
     const viewerId = await requireViewerId(ctx);
@@ -107,9 +107,9 @@ export const update = mutation({
       photoIds,
       ...(args.recordedAt !== undefined ? { recordedAt: args.recordedAt } : {}),
       ...(args.location ? { location: args.location } : {}),
-      ...(args.shareLocationNow !== undefined ? { shareLocationNow: args.shareLocationNow } : {}),
+      ...(args.publishNow !== undefined ? { publishNow: args.publishNow } : {}),
     });
-    await syncLocationRelease(ctx, (await ctx.db.get(entryId))!, journey);
+    await syncRelease(ctx, (await ctx.db.get(entryId))!, journey);
   },
 });
 
@@ -131,14 +131,14 @@ export const remove = mutation({
 });
 
 /** Scheduled at `recordedAt + delay`; no-ops if the entry changed since. */
-export const releaseLocation = internalMutation({
+export const releaseEntry = internalMutation({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
     const entry = await ctx.db.get(entryId);
-    if (!entry || entry.locationPublic) return;
+    if (!entry || entry.published) return;
     const journey = await ctx.db.get(entry.journeyId);
-    if (!journey || Date.now() < locationReleaseAt(entry, journey)) return;
-    await syncLocationRelease(ctx, entry, journey);
+    if (!journey || Date.now() < releaseAt(entry, journey)) return;
+    await syncRelease(ctx, entry, journey);
   },
 });
 
@@ -154,7 +154,11 @@ export const listForJourney = query({
       .query("entries")
       .withIndex("by_journey_time", (q) => q.eq("journeyId", journeyId))
       .collect();
-    return await Promise.all(entries.map((e) => toEntryView(ctx, e, journey, access.isMember)));
+    return await Promise.all(
+      entries
+        .filter((e) => canSeeEntry(e, access.isMember))
+        .map((e) => toEntryView(ctx, e, journey, access.isMember)),
+    );
   },
 });
 
@@ -165,7 +169,7 @@ export const get = query({
     if (!entry) return null;
     const journey = (await ctx.db.get(entry.journeyId))!;
     const access = await getJourneyAccess(ctx, journey, await getViewerId(ctx));
-    if (!access.canView) return null;
+    if (!access.canView || !canSeeEntry(entry, access.isMember)) return null;
     return {
       entry: await toEntryView(ctx, entry, journey, access.isMember),
       journey: { _id: journey._id, title: journey.title },
@@ -174,7 +178,7 @@ export const get = query({
   },
 });
 
-/** Public entry locations inside a map rectangle (only already-released ones are indexed). */
+/** Published entry locations inside a map rectangle (only published entries are indexed). */
 export const inArea = query({
   args: {
     rectangle: v.object({ west: v.number(), south: v.number(), east: v.number(), north: v.number() }),

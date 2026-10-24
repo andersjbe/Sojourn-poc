@@ -23,17 +23,11 @@ line on a map.
 | D9 | Stack | **Convex** backend with the **`@convex-dev/geospatial`** component; scaffolded with Better-T-Stack (see §3). This is a **proof of concept**. |
 | D10 | Media | **Up to 5 photos per entry**, no video in v1. |
 | D11 | Brand | Name **Sojourn**. Greens + earth tones, **sharp edges** — "a map and a journal on a table". |
-
-### Assumptions for questions not yet answered
-These are the defaults the POC uses; easy to change.
-
-| # | Question | Default chosen |
-|---|---|---|
-| A1 | Multi-author map: one line or one per author? | **One line per author**, each in a distinct earth-tone color. |
-| A2 | Location delay default / configurable? | **24h default**, owner can set per journey (0–72h). |
-| A3 | During the delay, show text/photos? | **Show text/photos, hide location** (map marker appears once the delay passes). |
-| A4 | Do followers bypass the delay? | **No** — only journey members see live locations. |
-| A5 | Removed author's entries | **Stay in the journey** (still attributed to them). |
+| D12 | Multi-author map | **One line** through all entries in time order, whoever wrote them (markers colored by author). |
+| D13 | Delay length | **24h default**; the owner sets it per journey (0–72h). |
+| D14 | What the delay hides | The **whole entry** (text, photos, location) is hidden from non-members until the delay passes. "Publish now" overrides it per entry, after a warning. |
+| D15 | Followers & the delay | Followers wait like everyone else; only journey members (owner + co-authors) see entries immediately. |
+| D16 | Removed authors | Their entries **stay in the journey**, still attributed to them. |
 
 ---
 
@@ -42,16 +36,16 @@ These are the defaults the POC uses; easy to change.
 | Concept | Description |
 |---|---|
 | **User / Profile** | Better Auth user + profile: username, display name, trail name, bio, avatar, **privacy settings**. |
-| **Journey** | Title, description, **tags**, start/end date, status (planned / active / completed), visibility, location delay, cover photo. |
+| **Journey** | Title, description, **tags**, start/end date, status (planned / active / completed), visibility, safety delay, cover photo. |
 | **Journey member** | `owner` or `author`; `invited` → `active`. Only active members post entries. |
-| **Entry** | One author; `recordedAt`, `location {lat,lng}`, optional `body`, 0–5 photos, `shareLocationNow` override flag. |
+| **Entry** | One author; `recordedAt`, `location {lat,lng}`, optional `body`, 0–5 photos, `publishNow` override flag, `published` state. |
 | **Follow** | follower → followee, with `pending` / `accepted` state for private profiles. |
 
 Rules
 - An entry needs text **or** at least one photo.
 - Timestamp & location default to now / current GPS (or a photo's EXIF), and
   are editable later (D6), including by dragging the pin on a map.
-- Map line = entries sorted by `recordedAt`, grouped by author, straight segments.
+- Map line = all visible entries sorted by `recordedAt`, joined with straight segments (one line, D12).
 
 ### Tags (D4)
 - Stored normalized (lower-case, no `#`) for matching, display form kept.
@@ -64,15 +58,16 @@ Profile privacy settings:
 - `profileVisibility`: `public` (anyone can follow) | `approval` (follow requests need approval) | `private` (no followers, no discovery).
 - Journey `visibility`: `public` | `followers` | `unlisted` (link only) | `private` (members only).
 
-Location delay
-- Non-members receive `location = null` for an entry until
-  `recordedAt + journey.locationDelay` has passed, unless the author set
-  `shareLocationNow`. Turning that on shows a warning dialog:
-  > *Sharing your location now lets anyone who can see this journey know where
-  > you are right now. Only do this if you're comfortable with that.*
-- Enforced **in Convex query functions** — redacted server-side, never sent to the client.
-- Geospatial index only contains entries whose location is publicly visible
-  (see §3), so map/area queries can't leak hidden locations.
+Safety delay (D2, D14)
+- Non-members don't receive an entry at all until `recordedAt + journey.delayHours`
+  has passed (a scheduled function flips `published`), unless the author chose
+  `publishNow`. Turning that on shows a warning:
+  > *Anyone who can see this journey will see this entry immediately — including
+  > exactly where you are right now — instead of after the usual delay.*
+- Enforced **in Convex query functions** (journey timeline, entry page, feed) —
+  unpublished entries are never sent to non-members.
+- Geospatial index only contains published entries (see §3), so map/area
+  queries can't leak them.
 - EXIF GPS is read on device for pre-fill, then **stripped** before upload
   (re-encoding the image via `expo-image-manipulator` drops metadata).
 
@@ -86,10 +81,10 @@ Location delay
 ## 2. Feature scope (POC)
 
 1. Auth (Better Auth email/password; social sign-in later) + profile & privacy settings.
-2. Journeys: create / edit / delete, tags, visibility, location delay.
+2. Journeys: create / edit / delete, tags, visibility, safety delay.
 3. Members: owner invites authors by username; invitee accepts/declines.
-4. Entries: text + up to 5 photos, GPS/EXIF pre-fill, edit location after creation, "share location now" + warning.
-5. Journey view: map (polylines per author + markers) and timeline.
+4. Entries: text + up to 5 photos, GPS/EXIF pre-fill, edit location after creation, "publish now" + warning.
+5. Journey view: map (one line through all entries + markers) and timeline.
 6. Follow/unfollow, follow requests, feed.
 7. Explore: browse public journeys by tag.
 8. Offline-first entry creation on mobile (outbox, see §3).
@@ -121,18 +116,18 @@ Monorepo (Turborepo + bun workspaces):
 profiles:        { userId, username, displayName, trailName?, bio?, avatarId?,
                    profileVisibility }                         // index by_user, by_username
 journeys:        { ownerId, title, description?, tags: string[], status,
-                   visibility, locationDelayHours, startedOn?, endedOn?,
+                   visibility, delayHours, startedOn?, endedOn?,
                    coverPhotoId? }                             // index by_owner
 journeyTags:     { journeyId, tag }                            // index by_tag (lookup table)
 journeyMembers:  { journeyId, userId, role, status, invitedBy } // by_journey, by_user
 entries:         { journeyId, authorId, clientId, recordedAt,
                    location: { lat, lng }, body?, photoIds: Id<"_storage">[],
-                   shareLocationNow, editedAt? }               // by_journey_time, by_author_time, by_client_id
+                   publishNow, published }                     // by_journey_time, by_author_time, by_client_id
 follows:         { followerId, followeeId, status }            // by_follower, by_followee
 ```
 - `@convex-dev/geospatial` index: key = entryId, coordinates = location,
   filter keys = journeyId / visibility. An entry is inserted into the index
-  only once its location is publicly visible (immediately if `shareLocationNow`,
+  only once it is published (immediately if `publishNow`,
   otherwise via a **scheduled function** at `recordedAt + delay`). Updated on
   location edits, removed on delete. Used for "journeys near here" / explore-by-area.
 - Photos: Convex file storage (`generateUploadUrl` → upload → store `_storage` id).
@@ -171,8 +166,8 @@ is handled by a small client-side outbox:
 | 1 | Auth + profiles + privacy settings | ✅ web + native |
 | 2 | Journeys (tags, visibility, delay) | ✅ create on both; full management on web |
 | 3 | Entries (text, photos, GPS/EXIF, edit location) + timeline | ✅ |
-| 4 | Map view (per-author polylines) — web + native | ✅ |
-| 5 | Location delay enforcement + override warning + geospatial index | ✅ (`entries.inArea` not yet used in UI) |
+| 4 | Map view (single line, author-colored markers) — web + native | ✅ |
+| 5 | Whole-entry delay enforcement + "publish now" warning + geospatial index | ✅ (`entries.inArea` not yet used in UI) |
 | 6 | Members (invite/accept) | ✅ invite on both; remove/cancel on web |
 | 7 | Follow + feed + explore-by-tag | ✅ |
 | 8 | Offline outbox on mobile | ✅ create offline; edits need signal |

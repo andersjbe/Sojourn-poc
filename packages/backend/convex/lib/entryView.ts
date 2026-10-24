@@ -1,16 +1,23 @@
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { getProfile, profileSummary } from "./access";
-import { locationReleaseAt } from "./geo";
+import { releaseAt } from "./geo";
 
-/** Shape sent to clients; hides the location from non-members during the delay. */
+/**
+ * Non-members can't see an entry at all until it's published (the journey's
+ * delay has passed, or the author chose to publish immediately).
+ */
+export function canSeeEntry(entry: Doc<"entries">, isMember: boolean) {
+  return isMember || entry.published;
+}
+
+/** Shape sent to clients. Callers must check `canSeeEntry` first. */
 export async function toEntryView(
   ctx: QueryCtx,
   entry: Doc<"entries">,
   journey: Doc<"journeys">,
   isMember: boolean,
 ) {
-  const showLocation = isMember || entry.locationPublic;
   const photos = [];
   for (const id of entry.photoIds) {
     const url = await ctx.storage.getUrl(id);
@@ -25,11 +32,11 @@ export async function toEntryView(
     photos,
     author: profileSummary(await getProfile(ctx, entry.authorId)),
     authorId: entry.authorId,
-    location: showLocation ? entry.location : null,
-    shareLocationNow: entry.shareLocationNow,
-    /** Members only: whether non-members can see this location yet, and when they will. */
-    locationStatus: isMember
-      ? { isPublic: entry.locationPublic, releaseAt: locationReleaseAt(entry, journey) }
+    location: entry.location,
+    publishNow: entry.publishNow,
+    /** Members only: whether the public can see this entry yet, and when they will. */
+    releaseStatus: isMember
+      ? { isPublic: entry.published, releaseAt: releaseAt(entry, journey) }
       : null,
   };
 }

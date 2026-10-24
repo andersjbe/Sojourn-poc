@@ -5,38 +5,38 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 /**
- * Only entries whose location is visible to non-members are indexed, so area
- * queries can never reveal a location that is still inside the safety delay.
+ * Only published entries are indexed, so area queries can never reveal an
+ * entry that is still inside the safety delay.
  */
 export const entryLocations = new GeospatialIndex<
   Id<"entries">,
   { journeyId: string; visibility: Doc<"journeys">["visibility"] }
 >(components.geospatial);
 
-export function locationReleaseAt(entry: Doc<"entries">, journey: Doc<"journeys">) {
-  return entry.recordedAt + journey.locationDelayHours * 60 * 60 * 1000;
+export function releaseAt(entry: Doc<"entries">, journey: Doc<"journeys">) {
+  return entry.recordedAt + journey.delayHours * 60 * 60 * 1000;
 }
 
 /**
- * Recompute whether an entry's location is public, keep the geospatial index
- * in step, and schedule the release if it's still in the future.
+ * Recompute whether an entry is published, keep the geospatial index in step,
+ * and schedule the release if it's still in the future.
  */
-export async function syncLocationRelease(
+export async function syncRelease(
   ctx: MutationCtx,
   entry: Doc<"entries">,
   journey: Doc<"journeys">,
 ) {
-  const releaseAt = locationReleaseAt(entry, journey);
-  const isPublic = entry.shareLocationNow || Date.now() >= releaseAt;
-  if (isPublic !== entry.locationPublic) {
-    await ctx.db.patch(entry._id, { locationPublic: isPublic });
+  const dueAt = releaseAt(entry, journey);
+  const isPublic = entry.publishNow || Date.now() >= dueAt;
+  if (isPublic !== entry.published) {
+    await ctx.db.patch(entry._id, { published: isPublic });
   }
   if (isPublic) {
     await indexEntry(ctx, entry, journey);
   } else {
     await entryLocations.remove(ctx, entry._id);
     // Earlier-scheduled releases re-check the time and no-op if not yet due.
-    await ctx.scheduler.runAt(releaseAt, internal.entries.releaseLocation, { entryId: entry._id });
+    await ctx.scheduler.runAt(dueAt, internal.entries.releaseEntry, { entryId: entry._id });
   }
 }
 

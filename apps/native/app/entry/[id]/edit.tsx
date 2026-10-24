@@ -47,7 +47,7 @@ export default function EditEntryScreen() {
               body: values.body,
               recordedAt: values.recordedAt,
               location: values.location,
-              shareLocationNow: values.shareLocationNow,
+              publishNow: values.publishNow,
               photoIds,
             });
             router.back();

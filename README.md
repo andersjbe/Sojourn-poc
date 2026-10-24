@@ -2,8 +2,8 @@
 
 Trail journals for long-distance hikers. A **journey** is a collection of journal
 **entries** (text and/or up to 5 photos), each with a timestamp and a location.
-A journey's entries are joined in time order and drawn on a map — one line per
-author.
+A journey's entries are joined in time order and drawn on a map as one line,
+whichever co-author wrote them.
 
 This is a proof of concept. Product decisions and the roadmap live in
 [`docs/PLAN.md`](docs/PLAN.md).
@@ -12,9 +12,10 @@ This is a proof of concept. Product decisions and the roadmap live in
 
 - **Journeys** on any trail, labelled with free-form tags (`#at`, `#AppalachianTrail`, …)
 - **Entries** with text + photos, GPS or photo-EXIF location/time, and editable location
-- **Location safety delay**: the public sees an entry's location only after the
-  journey's delay (24h by default). Authors can override per entry after a warning.
-  Enforced server-side; photos are EXIF-stripped before upload.
+- **Safety delay**: entries are hidden from everyone except the journey's authors
+  until the delay passes (24h by default), so a post never reveals where a hiker is
+  right now. Authors can publish an entry immediately after a warning. Enforced
+  server-side; photos are EXIF-stripped before upload.
 - **Co-authors**: the owner invites hikers, who must accept before posting
 - **Follow + feed**, with per-profile privacy (open / approve followers / private)
 - **Explore** journeys by tag, search hikers

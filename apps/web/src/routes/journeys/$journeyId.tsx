@@ -97,8 +97,7 @@ function JourneyPage() {
         )}
         {!access.isMember && (
           <p className="mt-3 font-mono text-xs text-muted-foreground">
-            For the hikers' safety, entry locations appear on the map {journey.locationDelayHours} hours after they're
-            posted.
+            For the hikers' safety, entries appear here {journey.delayHours} hours after they're written.
           </p>
         )}
       </header>

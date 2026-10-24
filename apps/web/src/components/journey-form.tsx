@@ -1,5 +1,5 @@
 import type { Doc } from "@sojourn/backend/convex/_generated/dataModel";
-import { DEFAULT_LOCATION_DELAY_HOURS, MAX_LOCATION_DELAY_HOURS } from "@sojourn/backend/convex/lib/constants";
+import { DEFAULT_DELAY_HOURS, MAX_DELAY_HOURS } from "@sojourn/backend/convex/lib/constants";
 import { parseTags } from "@sojourn/backend/convex/lib/tags";
 import { Button } from "@sojourn/ui/components/button";
 import { Input } from "@sojourn/ui/components/input";
@@ -15,7 +15,7 @@ import { TagInput } from "./tag-input";
 type Journey = Doc<"journeys">;
 export type JourneyFormValues = Pick<
   Journey,
-  "title" | "tags" | "status" | "visibility" | "locationDelayHours"
+  "title" | "tags" | "status" | "visibility" | "delayHours"
 > & { description: string; startedOn: string; endedOn: string };
 
 const VISIBILITY: { value: Journey["visibility"]; label: string; hint: string }[] = [
@@ -41,7 +41,7 @@ export function JourneyForm({
   const [tags, setTags] = useState(initial?.tags.map((t) => `#${t}`).join(" ") ?? "");
   const [status, setStatus] = useState<Journey["status"]>(initial?.status ?? "active");
   const [visibility, setVisibility] = useState<Journey["visibility"]>(initial?.visibility ?? "public");
-  const [delay, setDelay] = useState(initial?.locationDelayHours ?? DEFAULT_LOCATION_DELAY_HOURS);
+  const [delay, setDelay] = useState(initial?.delayHours ?? DEFAULT_DELAY_HOURS);
   const [startedOn, setStartedOn] = useState(initial?.startedOn ?? "");
   const [endedOn, setEndedOn] = useState(initial?.endedOn ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +56,7 @@ export function JourneyForm({
         tags: parseTags(tags),
         status,
         visibility,
-        locationDelayHours: delay,
+        delayHours: delay,
         startedOn,
         endedOn,
       });
@@ -116,20 +116,20 @@ export function JourneyForm({
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="delay">Location safety delay: {delay} hours</Label>
+        <Label htmlFor="delay">Safety delay: {delay} hours</Label>
         <input
           id="delay"
           type="range"
           min={0}
-          max={MAX_LOCATION_DELAY_HOURS}
+          max={MAX_DELAY_HOURS}
           step={1}
           value={delay}
           onChange={(e) => setDelay(Number(e.target.value))}
           className="w-full accent-[var(--primary)]"
         />
         <p className="text-xs text-muted-foreground">
-          Viewers see each entry's text and photos right away, but its location only after this delay. You can
-          override it for individual entries.
+          Entries are hidden from everyone but you and your co-authors until this long after they're written, so
+          they never reveal where you are right now. You can publish individual entries immediately.
         </p>
       </div>
       <Button type="submit" size="lg" disabled={submitting}>

@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { type JourneyAccess, getJourneyAccess, getViewerId } from "./lib/access";
-import { toEntryView } from "./lib/entryView";
+import { canSeeEntry, toEntryView } from "./lib/entryView";
 
 const PER_HIKER = 20;
 
@@ -49,7 +49,7 @@ export const get = query({
         );
       }
       const info = journeys.get(entry.journeyId);
-      if (!info?.access.canView) continue;
+      if (!info?.access.canView || !canSeeEntry(entry, info.access.isMember)) continue;
       items.push({
         ...(await toEntryView(ctx, entry, info.journey, info.access.isMember)),
         journeyTitle: info.journey.title,

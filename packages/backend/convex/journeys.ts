@@ -11,8 +11,8 @@ import {
   requireJourneyRole,
   requireViewerId,
 } from "./lib/access";
-import { DEFAULT_LOCATION_DELAY_HOURS, MAX_LOCATION_DELAY_HOURS } from "./lib/constants";
-import { entryLocations, syncLocationRelease } from "./lib/geo";
+import { DEFAULT_DELAY_HOURS, MAX_DELAY_HOURS } from "./lib/constants";
+import { entryLocations, syncRelease } from "./lib/geo";
 import { MAX_TAGS, cleanTag, normalizeTag } from "./lib/tags";
 import { journeyStatus, journeyVisibility } from "./schema";
 
@@ -31,8 +31,8 @@ function validateTags(raw: string[]) {
 }
 
 function validateDelay(hours: number) {
-  if (!Number.isFinite(hours) || hours < 0 || hours > MAX_LOCATION_DELAY_HOURS) {
-    throw new ConvexError(`Location delay must be between 0 and ${MAX_LOCATION_DELAY_HOURS} hours.`);
+  if (!Number.isFinite(hours) || hours < 0 || hours > MAX_DELAY_HOURS) {
+    throw new ConvexError(`The posting delay must be between 0 and ${MAX_DELAY_HOURS} hours.`);
   }
   return hours;
 }
@@ -53,7 +53,7 @@ export const create = mutation({
     tags: v.array(v.string()),
     status: v.optional(journeyStatus),
     visibility: v.optional(journeyVisibility),
-    locationDelayHours: v.optional(v.number()),
+    delayHours: v.optional(v.number()),
     startedOn: v.optional(v.string()),
     endedOn: v.optional(v.string()),
   },
@@ -70,7 +70,7 @@ export const create = mutation({
       tags,
       status: args.status ?? "active",
       visibility: args.visibility ?? "public",
-      locationDelayHours: validateDelay(args.locationDelayHours ?? DEFAULT_LOCATION_DELAY_HOURS),
+      delayHours: validateDelay(args.delayHours ?? DEFAULT_DELAY_HOURS),
       startedOn: args.startedOn || undefined,
       endedOn: args.endedOn || undefined,
     });
@@ -94,7 +94,7 @@ export const update = mutation({
     tags: v.optional(v.array(v.string())),
     status: v.optional(journeyStatus),
     visibility: v.optional(journeyVisibility),
-    locationDelayHours: v.optional(v.number()),
+    delayHours: v.optional(v.number()),
     startedOn: v.optional(v.string()),
     endedOn: v.optional(v.string()),
   },
@@ -103,7 +103,7 @@ export const update = mutation({
     const title = args.title?.trim();
     if (args.title !== undefined && !title) throw new ConvexError("Give your journey a title.");
     const tags = args.tags ? validateTags(args.tags) : undefined;
-    if (args.locationDelayHours !== undefined) validateDelay(args.locationDelayHours);
+    if (args.delayHours !== undefined) validateDelay(args.delayHours);
 
     await ctx.db.patch(journeyId, {
       ...(title ? { title } : {}),
@@ -111,14 +111,14 @@ export const update = mutation({
       ...(tags ? { tags } : {}),
       ...(args.status ? { status: args.status } : {}),
       ...(args.visibility ? { visibility: args.visibility } : {}),
-      ...(args.locationDelayHours !== undefined ? { locationDelayHours: args.locationDelayHours } : {}),
+      ...(args.delayHours !== undefined ? { delayHours: args.delayHours } : {}),
       ...(args.startedOn !== undefined ? { startedOn: args.startedOn || undefined } : {}),
       ...(args.endedOn !== undefined ? { endedOn: args.endedOn || undefined } : {}),
     });
     if (tags) await writeTags(ctx, journeyId, tags);
 
     const delayChanged =
-      args.locationDelayHours !== undefined && args.locationDelayHours !== journey.locationDelayHours;
+      args.delayHours !== undefined && args.delayHours !== journey.delayHours;
     const visibilityChanged = args.visibility !== undefined && args.visibility !== journey.visibility;
     if (delayChanged || visibilityChanged) {
       // Re-evaluate every entry's release time and refresh index filter keys.
@@ -127,7 +127,7 @@ export const update = mutation({
         .query("entries")
         .withIndex("by_journey_time", (q) => q.eq("journeyId", journeyId))
         .collect();
-      for (const entry of entries) await syncLocationRelease(ctx, entry, updated);
+      for (const entry of entries) await syncRelease(ctx, entry, updated);
     }
   },
 });

@@ -23,7 +23,7 @@ export default function ComposeScreen() {
             recordedAt: values.recordedAt,
             location: values.location,
             body: values.body.trim() || undefined,
-            shareLocationNow: values.shareLocationNow,
+            publishNow: values.publishNow,
             photoUris: values.photos.flatMap((p) => (p.kind === "new" ? [p.uri] : [])),
           });
           router.back();

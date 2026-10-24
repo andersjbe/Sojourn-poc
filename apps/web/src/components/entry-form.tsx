@@ -22,7 +22,7 @@ export type EntryFormValues = {
   body: string;
   recordedAt: number;
   location: LatLng;
-  shareLocationNow: boolean;
+  publishNow: boolean;
   photoIds: Id<"_storage">[];
 };
 
@@ -39,7 +39,7 @@ export function EntryForm({
     body: string | null;
     recordedAt: number;
     location: LatLng | null;
-    shareLocationNow: boolean;
+    publishNow: boolean;
     photos: { id: Id<"_storage">; url: string }[];
   };
   submitLabel: string;
@@ -49,7 +49,7 @@ export function EntryForm({
   const [body, setBody] = useState(initial?.body ?? "");
   const [recordedAt, setRecordedAt] = useState(initial?.recordedAt ?? Date.now());
   const [location, setLocation] = useState<LatLng | null>(initial?.location ?? null);
-  const [shareNow, setShareNow] = useState(initial?.shareLocationNow ?? false);
+  const [shareNow, setShareNow] = useState(initial?.publishNow ?? false);
   const [confirmShare, setConfirmShare] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>(
     initial?.photos.map((p) => ({ kind: "existing" as const, ...p })) ?? [],
@@ -111,7 +111,7 @@ export function EntryForm({
           photoIds.push((await uploadPhoto(await generateUploadUrl(), blob)) as Id<"_storage">);
         }
       }
-      await onSubmit({ body, recordedAt, location, shareLocationNow: shareNow, photoIds });
+      await onSubmit({ body, recordedAt, location, publishNow: shareNow, photoIds });
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -207,9 +207,10 @@ export function EntryForm({
           onChange={(e) => (e.target.checked ? setConfirmShare(true) : setShareNow(false))}
         />
         <span>
-          <span className="font-medium">Share this location now</span>
+          <span className="font-medium">Publish this entry now</span>
           <span className="block text-muted-foreground">
-            By default your exact location is only shown to the public after this journey's safety delay.
+            By default entries are only shown to the public after this journey's safety delay, so they can't reveal
+            where you are right now.
           </span>
         </span>
       </label>
@@ -220,8 +221,8 @@ export function EntryForm({
 
       <ConfirmDialog
         open={confirmShare}
-        title="Share your location in real time?"
-        confirmLabel="Share now"
+        title="Publish this entry right away?"
+        confirmLabel="Publish now"
         destructive
         onCancel={() => setConfirmShare(false)}
         onConfirm={() => {
@@ -230,12 +231,12 @@ export function EntryForm({
         }}
       >
         <p>
-          Anyone who can see this journey will be able to see <strong>exactly where you are right now</strong>, not
-          after the usual delay.
+          Anyone who can see this journey will see this entry immediately — including{" "}
+          <strong>exactly where you are right now</strong> — instead of after the usual delay.
         </p>
         <p className="text-muted-foreground">
-          Solo hikers can be put at risk by sharing live locations. Only do this if you're comfortable with everyone
-          who can view this journey knowing where you are.
+          Solo hikers can be put at risk by sharing their live location. Only do this if you're comfortable with
+          everyone who can view this journey knowing where you are.
         </p>
       </ConfirmDialog>
     </form>

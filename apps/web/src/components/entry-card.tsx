@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@sojourn/ui/lib/utils";
-import { EyeOff, MapPin, Pencil, Radio } from "lucide-react";
+import { Clock, MapPin, Pencil, Radio } from "lucide-react";
 
 import { formatCoords, formatDateTime } from "@/lib/format";
 import type { EntryView } from "@/lib/types";
@@ -18,7 +18,7 @@ export function EntryCard({
   canEdit?: boolean;
   onSelect?: () => void;
 }) {
-  const status = entry.locationStatus;
+  const status = entry.releaseStatus;
   return (
     <article
       id={`entry-${entry._id}`}
@@ -74,25 +74,17 @@ export function EntryCard({
 
       <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          {entry.location ? (
-            <>
-              <MapPin className="size-3.5" /> {formatCoords(entry.location)}
-            </>
-          ) : (
-            <>
-              <EyeOff className="size-3.5" /> Location hidden for safety — appears after a delay
-            </>
-          )}
+          <MapPin className="size-3.5" /> {formatCoords(entry.location)}
         </span>
         <span className="flex items-center gap-3">
           {status && !status.isPublic && (
-            <span title="Only journey members can see this location right now">
-              Public {formatDateTime(status.releaseAt)}
+            <span className="flex items-center gap-1" title="Only journey members can see this entry right now">
+              <Clock className="size-3.5" /> Public {formatDateTime(status.releaseAt)}
             </span>
           )}
-          {status && entry.shareLocationNow && (
+          {status && entry.publishNow && (
             <span className="flex items-center gap-1 text-destructive">
-              <Radio className="size-3.5" /> shared live
+              <Radio className="size-3.5" /> published immediately
             </span>
           )}
           {canEdit && (

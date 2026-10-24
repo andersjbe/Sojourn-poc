@@ -67,7 +67,7 @@ export default function JourneyScreen() {
               }}
             />
             {!access.isMember && (
-              <Muted mono>Locations appear {journey.locationDelayHours}h after posting, for the hikers' safety.</Muted>
+              <Muted mono>Entries appear {journey.delayHours}h after they're written, for the hikers' safety.</Muted>
             )}
             {access.isMember && (
               <Button
